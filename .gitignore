@@ -1,0 +1,5 @@
+.env
+*.log
+.sisyphus/evidence/
+node_modules/
+.DS_Store

@@ -1,0 +1,209 @@
+#!/usr/bin/env bash
+# Shared utility functions for proxmox-oracle26ai scripts
+# Source this file: source misc/build.func
+set -euo pipefail
+
+# ---------------------------------------------------------------------------
+# Color variables
+# ---------------------------------------------------------------------------
+YW='\033[33m'       # Yellow
+GN='\033[32m'       # Green
+RD='\033[31m'       # Red
+BL='\033[34m'       # Blue
+CL='\033[m'         # Clear/reset
+BFR="\\r\\033[K"    # Buffer clear (for spinner updates)
+CM='\xE2\x9C\x94'  # Checkmark ✓
+CROSS='\xE2\x9C\x97' # Cross ✗
+HOLD='-'            # Spinner placeholder
+
+# ---------------------------------------------------------------------------
+# Messaging functions
+# ---------------------------------------------------------------------------
+msg_info() {
+  local msg="$1"
+  echo -ne " ${HOLD} ${YW}${msg}${CL}\r"
+}
+
+msg_ok() {
+  local msg="$1"
+  echo -e " ${CM} ${GN}${msg}${CL}"
+}
+
+msg_error() {
+  local msg="$1"
+  echo -e " ${CROSS} ${RD}${msg}${CL}"
+  exit 1
+}
+
+msg_warn() {
+  local msg="$1"
+  echo -e " ${HOLD} ${YW}WARNING: ${msg}${CL}"
+}
+
+# ---------------------------------------------------------------------------
+# Validation functions
+# ---------------------------------------------------------------------------
+check_root() {
+  if [[ $EUID -ne 0 ]]; then
+    msg_error "This script must be run as root"
+  fi
+}
+
+check_proxmox() {
+  if ! command -v pveversion &>/dev/null; then
+    msg_error "This script must be run on a Proxmox VE host"
+  fi
+}
+
+check_internet() {
+  if ! ping -c1 -W3 8.8.8.8 &>/dev/null; then
+    msg_error "No internet connectivity. Please check your network."
+  fi
+}
+
+check_storage_space() {
+  local required_gb="${1:-30}"
+  local storage="${2:-/}"
+  local available_gb
+  available_gb=$(df -BG "$storage" | awk 'NR==2 {gsub(/G/,"",$4); print $4}')
+  if [[ "$available_gb" -lt "$required_gb" ]]; then
+    msg_error "Insufficient disk space. Required: ${required_gb}GB, Available: ${available_gb}GB"
+  fi
+}
+
+check_port_available() {
+  local port="$1"
+  if ss -tlnp | grep -q ":${port} "; then
+    msg_error "Port ${port} is already in use. Please free it or change the port in .env"
+  fi
+}
+
+check_vmid_available() {
+  local vmid="$1"
+  if qm status "$vmid" &>/dev/null || pct status "$vmid" &>/dev/null; then
+    msg_error "VMID ${vmid} is already in use. Choose a different ID."
+  fi
+}
+
+check_container_runtime() {
+  if command -v docker &>/dev/null; then
+    RUNTIME="docker"
+    msg_ok "Docker detected: $(docker --version | head -1)"
+  elif command -v podman &>/dev/null; then
+    RUNTIME="podman"
+    msg_warn "Podman detected. Docker is preferred. Some features may differ."
+  else
+    msg_info "No container runtime found. Installing Docker CE..."
+    install_docker
+  fi
+  export RUNTIME
+}
+
+# ---------------------------------------------------------------------------
+# Whiptail helpers
+# ---------------------------------------------------------------------------
+whiptail_menu() {
+  # Args: title text height width list-height [tag desc on/off ...]
+  local title="$1" text="$2"
+  shift 2
+  local result
+  result=$(whiptail --title "$title" --radiolist "$text" 20 70 10 "$@" 3>&1 1>&2 2>&3) || {
+    msg_warn "Operation cancelled by user."
+    exit 0
+  }
+  echo "$result"
+}
+
+whiptail_input() {
+  # Args: title text default_value
+  local title="$1" text="$2" default="${3:-}"
+  local result
+  result=$(whiptail --title "$title" --inputbox "$text" 10 60 "$default" 3>&1 1>&2 2>&3) || {
+    msg_warn "Operation cancelled by user."
+    exit 0
+  }
+  echo "$result"
+}
+
+whiptail_yesno() {
+  # Args: title text
+  local title="$1" text="$2"
+  whiptail --title "$title" --yesno "$text" 10 60 3>&1 1>&2 2>&3
+  return $?
+}
+
+whiptail_msg() {
+  # Args: title text
+  local title="$1" text="$2"
+  whiptail --title "$title" --msgbox "$text" 15 70 3>&1 1>&2 2>&3
+}
+
+# ---------------------------------------------------------------------------
+# Utility functions
+# ---------------------------------------------------------------------------
+next_vmid() {
+  # Get next available VMID from Proxmox
+  pvesh get /cluster/nextid 2>/dev/null || echo "100"
+}
+
+detect_storage() {
+  # List available storage pools
+  pvesm status --content images 2>/dev/null | awk 'NR>1 {print $1}' | head -10
+}
+
+load_env() {
+  # Source .env file if exists, apply defaults
+  local env_file="${1:-.env}"
+  if [[ -f "$env_file" ]]; then
+    # shellcheck source=/dev/null
+    source "$env_file"
+  fi
+  # Apply defaults for missing vars
+  ORACLE_PWD="${ORACLE_PWD:-ChangeMe123!}"
+  ORACLE_IMAGE_TAG="${ORACLE_IMAGE_TAG:-23.26.0.0}"
+  ORACLE_CONTAINER_NAME="${ORACLE_CONTAINER_NAME:-oracle-26ai}"
+  ORACLE_LISTENER_PORT="${ORACLE_LISTENER_PORT:-1521}"
+  ORACLE_ORDS_PORT="${ORACLE_ORDS_PORT:-8080}"
+  ORACLE_ORDS_SSL_PORT="${ORACLE_ORDS_SSL_PORT:-8443}"
+  CT_ID="${CT_ID:-auto}"
+  CT_HOSTNAME="${CT_HOSTNAME:-oracle26ai}"
+  CT_CORES="${CT_CORES:-4}"
+  CT_MEMORY="${CT_MEMORY:-8192}"
+  CT_DISK_SIZE="${CT_DISK_SIZE:-32}"
+  CT_STORAGE="${CT_STORAGE:-local-lvm}"
+  CT_NETWORK="${CT_NETWORK:-dhcp}"
+  CT_BRIDGE="${CT_BRIDGE:-vmbr0}"
+  CONTAINER_RUNTIME="${CONTAINER_RUNTIME:-auto}"
+}
+
+cleanup_on_error() {
+  # Trap handler: remove partial LXC/VM on failure
+  local vmid="${1:-}"
+  local type="${2:-lxc}"
+  if [[ -n "$vmid" ]]; then
+    msg_warn "Cleaning up partial deployment (VMID: $vmid)..."
+    if [[ "$type" == "lxc" ]]; then
+      pct stop "$vmid" &>/dev/null || true
+      pct destroy "$vmid" &>/dev/null || true
+    else
+      qm stop "$vmid" &>/dev/null || true
+      qm destroy "$vmid" &>/dev/null || true
+    fi
+    msg_ok "Cleanup complete."
+  fi
+}
+
+install_docker() {
+  # Install Docker CE on Debian/Ubuntu
+  msg_info "Installing Docker CE..."
+  apt-get update -qq
+  apt-get install -y -qq ca-certificates curl gnupg
+  install -m 0755 -d /etc/apt/keyrings
+  curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  chmod a+r /etc/apt/keyrings/docker.gpg
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+  apt-get update -qq
+  apt-get install -y -qq docker-ce docker-ce-cli containerd.io
+  systemctl enable --now docker
+  msg_ok "Docker CE installed successfully"
+}

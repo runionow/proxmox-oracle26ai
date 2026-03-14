@@ -549,7 +549,7 @@ Max Concurrent: 4 (Waves 2, 3)
   - Files: `sql/vector-demo.sql`
   - Pre-commit: `test -f sql/vector-demo.sql`
 
-- [ ] 4. LXC Creation Script — ct/oracle26ai.sh
+- [x] 4. LXC Creation Script — ct/oracle26ai.sh
 
   **What to do**:
   - Create `ct/oracle26ai.sh` — the main entry point for LXC-based Oracle 26ai deployment
@@ -674,7 +674,7 @@ Max Concurrent: 4 (Waves 2, 3)
   - Files: `ct/oracle26ai.sh`
   - Pre-commit: `shellcheck ct/oracle26ai.sh`
 
-- [ ] 5. VM Creation Script — ct/oracle26ai-vm.sh
+- [x] 5. VM Creation Script — ct/oracle26ai-vm.sh
 
   **What to do**:
   - Create `ct/oracle26ai-vm.sh` — entry point for KVM VM-based Oracle 26ai deployment
@@ -772,7 +772,7 @@ Max Concurrent: 4 (Waves 2, 3)
   - Files: `ct/oracle26ai-vm.sh`
   - Pre-commit: `shellcheck ct/oracle26ai-vm.sh`
 
-- [ ] 6. Oracle Install Script — install/oracle26ai-install.sh
+- [x] 6. Oracle Install Script — install/oracle26ai-install.sh
 
   **What to do**:
   - Create `install/oracle26ai-install.sh` — runs INSIDE the LXC container or VM to install Docker and Oracle 26ai
@@ -925,7 +925,7 @@ Max Concurrent: 4 (Waves 2, 3)
   - Files: `install/oracle26ai-install.sh`
   - Pre-commit: `shellcheck install/oracle26ai-install.sh`
 
-- [ ] 7. APEX + ORDS Module — scripts/setup-apex-ords.sh
+- [x] 7. APEX + ORDS Module — scripts/setup-apex-ords.sh
 
   **What to do**:
   - Create `scripts/setup-apex-ords.sh` — optional module to install Oracle APEX and ORDS on an existing Oracle 26ai container
@@ -1020,7 +1020,7 @@ Max Concurrent: 4 (Waves 2, 3)
   - Files: `scripts/setup-apex-ords.sh`
   - Pre-commit: `shellcheck scripts/setup-apex-ords.sh`
 
-- [ ] 8. Vector Search Demo Runner — scripts/setup-vector-demo.sh
+- [x] 8. Vector Search Demo Runner — scripts/setup-vector-demo.sh
 
   **What to do**:
   - Create `scripts/setup-vector-demo.sh` — loads and runs the vector search demo from `sql/vector-demo.sql`
@@ -1083,7 +1083,7 @@ Max Concurrent: 4 (Waves 2, 3)
   - Files: `scripts/setup-vector-demo.sh, sql/vector-demo.sql`
   - Pre-commit: `shellcheck scripts/setup-vector-demo.sh`
 
-- [ ] 9. Backup and Restore Scripts — scripts/backup.sh, scripts/restore.sh
+- [x] 9. Backup and Restore Scripts — scripts/backup.sh, scripts/restore.sh
 
   **What to do**:
   - Create `scripts/backup.sh` — backs up Oracle data from the container
@@ -1169,7 +1169,7 @@ Max Concurrent: 4 (Waves 2, 3)
   - Files: `scripts/backup.sh, scripts/restore.sh`
   - Pre-commit: `shellcheck scripts/backup.sh scripts/restore.sh`
 
-- [ ] 10. SSL/TLS Setup — scripts/setup-ssl.sh
+- [x] 10. SSL/TLS Setup — scripts/setup-ssl.sh
 
   **What to do**:
   - Create `scripts/setup-ssl.sh` — generates self-signed certificates and configures ORDS for HTTPS

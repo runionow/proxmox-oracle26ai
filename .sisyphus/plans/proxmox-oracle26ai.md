@@ -214,7 +214,7 @@ Max Concurrent: 4 (Waves 2, 3)
 > Implementation + Verification = ONE Task. Never separate.
 > EVERY task MUST have: Recommended Agent Profile + Parallelization info + QA Scenarios.
 
-- [ ] 1. Repo Scaffolding — git init, directories, LICENSE, .gitignore, .env.sample
+- [x] 1. Repo Scaffolding — git init, directories, LICENSE, .gitignore, .env.sample
 
   **What to do**:
   - Run `git init` in the project root
@@ -334,7 +334,7 @@ Max Concurrent: 4 (Waves 2, 3)
   - Files: `README.md, LICENSE, .gitignore, .env.sample, ct/, install/, misc/, scripts/, sql/`
   - Pre-commit: `test -f LICENSE && test -f .env.sample && test -d ct && test -d install`
 
-- [ ] 2. Shared Functions Library — misc/build.func
+- [x] 2. Shared Functions Library — misc/build.func
 
   **What to do**:
   - Create `misc/build.func` containing ALL shared bash functions used across every script
@@ -467,7 +467,7 @@ Max Concurrent: 4 (Waves 2, 3)
   - Files: `misc/build.func`
   - Pre-commit: `bash -n misc/build.func`
 
-- [ ] 3. Vector Demo SQL Data — sql/vector-demo.sql
+- [x] 3. Vector Demo SQL Data — sql/vector-demo.sql
 
   **What to do**:
   - Create `sql/vector-demo.sql` — a self-contained SQL script that demonstrates Oracle 26ai vector search

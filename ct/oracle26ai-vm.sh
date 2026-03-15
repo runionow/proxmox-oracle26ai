@@ -32,10 +32,15 @@ ORACLE_IMAGE_TAG=$(whiptail_menu "Oracle Image" "Choose Oracle 26ai image flavor
   "latest-lite"  "Lite image (~2GB)  — faster download, dev use" OFF)
 msg_ok "Selected image: container-registry.oracle.com/database/free:${ORACLE_IMAGE_TAG}"
 
-# Screen 3: Resources (slightly higher defaults for VM overhead)
-CT_CORES=$(whiptail_input "Resources" "Number of CPU cores:" "${CT_CORES:-4}")
-CT_MEMORY=$(whiptail_input "Resources" "RAM in MB (min 4096, recommended 8192):" "${CT_MEMORY:-8192}")
-CT_DISK_SIZE=$(whiptail_input "Resources" "Disk size in GB (min 20, recommended 40+):" "${CT_DISK_SIZE:-40}")
+# Screen 3: Resources (single form — CPU, RAM, Disk)
+RESOURCES=$(whiptail --title "Resources" --form "Configure VM resources:" 15 60 3 \
+  "CPU Cores:"  1 1 "${CT_CORES:-4}"     1 14 10 4 \
+  "RAM (MB):"   2 1 "${CT_MEMORY:-8192}" 2 14 10 6 \
+  "Disk (GB):"  3 1 "${CT_DISK_SIZE:-40}" 3 14 10 4 \
+  3>&1 1>&2 2>&3) || { msg_warn "Deployment cancelled."; exit 0; }
+CT_CORES=$(echo "$RESOURCES" | sed -n '1p' | tr -d '[:space:]')
+CT_MEMORY=$(echo "$RESOURCES" | sed -n '2p' | tr -d '[:space:]')
+CT_DISK_SIZE=$(echo "$RESOURCES" | sed -n '3p' | tr -d '[:space:]')
 
 # Screen 4: Network
 NETWORK_TYPE=$(whiptail_menu "Network" "Choose networking:" \
@@ -43,18 +48,28 @@ NETWORK_TYPE=$(whiptail_menu "Network" "Choose networking:" \
   "static" "Static IP — manual configuration" OFF)
 
 if [[ "$NETWORK_TYPE" == "static" ]]; then
-  CT_NETWORK=$(whiptail_input "Static IP" "Enter IP address with CIDR (e.g. 192.168.1.100/24):" "")
-  CT_GATEWAY=$(whiptail_input "Static IP" "Enter gateway IP:" "")
-  CT_DNS=$(whiptail_input "Static IP" "Enter DNS server (or leave empty for gateway):" "")
+  # Screen 4b: Static IP configuration (single form)
+  STATIC_CONFIG=$(whiptail --title "Static IP" --form "Configure static IP address:" 15 65 3 \
+    "IP/CIDR (e.g. 192.168.1.100/24):" 1 1 "" 1 35 25 20 \
+    "Gateway IP:"                       2 1 "" 2 35 25 15 \
+    "DNS Server (blank=gateway):"       3 1 "" 3 35 25 15 \
+    3>&1 1>&2 2>&3) || { msg_warn "Deployment cancelled."; exit 0; }
+  CT_NETWORK=$(echo "$STATIC_CONFIG" | sed -n '1p' | tr -d '[:space:]')
+  CT_GATEWAY=$(echo "$STATIC_CONFIG" | sed -n '2p' | tr -d '[:space:]')
+  CT_DNS=$(echo "$STATIC_CONFIG" | sed -n '3p' | tr -d '[:space:]')
   CT_DNS="${CT_DNS:-$CT_GATEWAY}"
   IPCONFIG="ip=${CT_NETWORK},gw=${CT_GATEWAY}"
 else
   IPCONFIG="ip=dhcp"
 fi
 
-# Screen 5: Password
-ORACLE_PWD=$(whiptail_input "Oracle Password" "Set Oracle SYS/SYSTEM password (min 8 chars):" "${ORACLE_PWD:-ChangeMe123!}")
-ROOT_PASSWORD=$(whiptail_input "VM Root Password" "Set VM root password (for SSH access):" "Proxmox123!")
+# Screen 5: Passwords (single form)
+PASSWORDS=$(whiptail --title "Passwords" --form "Set deployment passwords:" 12 65 2 \
+  "Oracle SYS password:"  1 1 "${ORACLE_PWD:-ChangeMe123!}" 1 24 30 50 \
+  "VM root password:"     2 1 "Proxmox123!"                 2 24 30 50 \
+  3>&1 1>&2 2>&3) || { msg_warn "Deployment cancelled."; exit 0; }
+ORACLE_PWD=$(echo "$PASSWORDS" | sed -n '1p')
+ROOT_PASSWORD=$(echo "$PASSWORDS" | sed -n '2p')
 
 # Screen 6: Confirmation
 SUMMARY="Deployment Summary:\n\n"

@@ -5,12 +5,17 @@
 set -euo pipefail
 
 # Source shared functions
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -f "${SCRIPT_DIR}/../misc/build.func" ]]; then
+GITHUB_RAW="https://raw.githubusercontent.com/runionow/proxmox-oracle26ai/main"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)" || SCRIPT_DIR=""
+if [[ -n "$SCRIPT_DIR" && -f "${SCRIPT_DIR}/../misc/build.func" ]]; then
   # shellcheck source=../misc/build.func
   source "${SCRIPT_DIR}/../misc/build.func"
 else
-  source <(curl -fsSL https://raw.githubusercontent.com/YOURUSERNAME/proxmox-oracle26ai/main/misc/build.func)
+  source <(curl -fsSL "${GITHUB_RAW}/misc/build.func") || {
+    echo "ERROR: Failed to download shared functions from GitHub."
+    echo "Check your internet connection or clone the repo locally."
+    exit 1
+  }
 fi
 
 check_root

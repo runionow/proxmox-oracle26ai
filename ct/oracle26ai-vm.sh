@@ -13,11 +13,11 @@ if [[ -n "$SCRIPT_DIR" && -f "${SCRIPT_DIR}/../misc/build.func" ]]; then
   # shellcheck source=../misc/build.func
   source "${SCRIPT_DIR}/../misc/build.func"
 else
-  source <(curl -fsSL "${GITHUB_RAW}/misc/build.func") || {
+  curl -fsSL "${GITHUB_RAW}/misc/build.func" -o /tmp/oracle26ai-build.func || {
     echo "ERROR: Failed to download shared functions from GitHub."
-    echo "Check your internet connection or clone the repo locally."
     exit 1
   }
+  source /tmp/oracle26ai-build.func
 fi
 
 # Pre-flight checks

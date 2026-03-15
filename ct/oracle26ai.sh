@@ -13,18 +13,19 @@ log "=== Oracle 26ai LXC installer started ==="
 log "TERM=$TERM, tty=$(tty 2>&1), stdin_isatty=$([ -t 0 ] && echo yes || echo no)"
 echo "Debug log: $DEBUGLOG"
 
-# Source shared functions (local first, then curl from GitHub)
+# Source shared functions — download to temp file to avoid stdin interference
 GITHUB_RAW="https://raw.githubusercontent.com/runionow/proxmox-oracle26ai/main"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)" || SCRIPT_DIR=""
 if [[ -n "$SCRIPT_DIR" && -f "${SCRIPT_DIR}/../misc/build.func" ]]; then
   # shellcheck source=../misc/build.func
   source "${SCRIPT_DIR}/../misc/build.func"
 else
-  source <(curl -fsSL "${GITHUB_RAW}/misc/build.func") || {
+  # Download to temp file (not process substitution) to preserve stdin for read prompts
+  curl -fsSL "${GITHUB_RAW}/misc/build.func" -o /tmp/oracle26ai-build.func || {
     echo "ERROR: Failed to download shared functions from GitHub."
-    echo "Check your internet connection or clone the repo locally."
     exit 1
   }
+  source /tmp/oracle26ai-build.func
 fi
 log "build.func loaded OK"
 

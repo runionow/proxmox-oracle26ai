@@ -13,15 +13,15 @@
 
 **Deploy via LXC container (recommended):**
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/runionow/proxmox-oracle26ai/main/ct/oracle26ai.sh)
+curl -fsSL https://raw.githubusercontent.com/runionow/proxmox-oracle26ai/main/ct/oracle26ai.sh -o /tmp/oracle26ai.sh && bash /tmp/oracle26ai.sh
 ```
 
 **Deploy via KVM virtual machine:**
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/runionow/proxmox-oracle26ai/main/ct/oracle26ai-vm.sh)
+curl -fsSL https://raw.githubusercontent.com/runionow/proxmox-oracle26ai/main/ct/oracle26ai-vm.sh -o /tmp/oracle26ai-vm.sh && bash /tmp/oracle26ai-vm.sh
 ```
 
-> ⚠️ Run on your **Proxmox VE host** as root. Always review scripts before piping to bash.
+> ⚠️ Run on your **Proxmox VE host** as root.
 
 ---
 

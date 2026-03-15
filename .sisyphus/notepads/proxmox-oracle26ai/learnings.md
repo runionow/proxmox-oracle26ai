@@ -114,6 +114,28 @@
 - GPG commit signing via 1Password SSH agent fails in non-interactive shell — use `git -c commit.gpgsign=false commit`
 - `detect_storage | head -1` works fine in main script (not inside function, so `local` not needed)
 
+## Task 7: scripts/setup-apex-ords.sh
+
+### Implementation Learnings
+- Script sources `misc/build.func` with local-first + curl fallback (same pattern as ct/ scripts)
+- `ORACLE_PWD` enforced via `:?` parameter expansion — fails fast with clear message
+- Container runtime detection done inline (not via `check_container_runtime()`) to set `RUNTIME` before use
+- `$RUNTIME ps --filter "name=${CONTAINER_NAME}"` is the canonical container running check
+- ORDS download from Oracle requires auth — script handles gracefully: warns, provides manual steps, falls back to bundled ORDS in Oracle home
+- `$RUNTIME exec -d` (detached) used to start ORDS as background process inside container
+- Health check loop uses `((ORDS_ELAPSED+=5))` — requires `set -e` compatible arithmetic (no `let`)
+- ORDS logs written to `/tmp/ords.log` inside container; manual restart command printed in summary
+
+### QA Results
+- `bash -n`: exit 0 ✓
+- `source.*build.func`: 3 matches (shellcheck directive + local path + curl fallback) ✓
+- Container detection (`ps.*filter|CONTAINER_NAME`): 25 matches ✓
+- ORDS port (`8080|ORDS_PORT`): 9 matches ✓
+
+### Gotchas
+- `grep -c` with alternation (`|`) counts lines with any match — use `-E` flag for extended regex if needed
+- Evidence files in `.sisyphus/evidence/` are gitignored — confirmed not committed
+
 ## Task 4: ct/oracle26ai.sh
 
 ### Patterns
@@ -137,3 +159,5 @@
 - check_root/proxmox/internet: all 3 ✓
 - cancel/exit 0: 2 matches ✓
 - trap cleanup_on_error ERR: present ✓
+
+- 2026-03-14 final verification: compliance audit rerun after whiptail form consolidation. Result: all Must Have checks passed (10/10), all Must NOT Have checks passed (7/7), all deliverables present (15/15). DHCP path in `ct/oracle26ai.sh` uses 6 whiptail calls; static IP adds one conditional form for 7 total only when explicitly selected.

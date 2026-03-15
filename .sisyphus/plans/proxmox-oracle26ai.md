@@ -1251,7 +1251,7 @@ Max Concurrent: 4 (Waves 2, 3)
   - Files: `scripts/setup-ssl.sh`
   - Pre-commit: `shellcheck scripts/setup-ssl.sh`
 
-- [ ] 11. README Finalization — README.md
+- [x] 11. README Finalization — README.md
 
   **What to do**:
   - Replace the skeleton README from Task 1 with complete documentation
@@ -1333,7 +1333,7 @@ Max Concurrent: 4 (Waves 2, 3)
   - Files: `README.md`
   - Pre-commit: `test -f README.md`
 
-- [ ] 12. Uninstall/Cleanup Script — scripts/uninstall.sh
+- [x] 12. Uninstall/Cleanup Script — scripts/uninstall.sh
 
   **What to do**:
   - Create `scripts/uninstall.sh` — removes Oracle 26ai deployment from Proxmox
@@ -1402,19 +1402,19 @@ Max Concurrent: 4 (Waves 2, 3)
 
 > 4 review agents run in PARALLEL. ALL must APPROVE. Rejection → fix → re-run.
 
-- [ ] F1. **Plan Compliance Audit** — `oracle`
+- [x] F1. **Plan Compliance Audit** — `oracle`
   Read the plan end-to-end. For each "Must Have": verify implementation exists (read file, grep for pattern). For each "Must NOT Have": search codebase for forbidden patterns — reject with file:line if found. Check evidence files exist in .sisyphus/evidence/. Compare deliverables against plan.
   Output: `Must Have [N/N] | Must NOT Have [N/N] | Tasks [N/N] | VERDICT: APPROVE/REJECT`
 
-- [ ] F2. **Code Quality Review** — `unspecified-high`
+- [x] F2. **Code Quality Review** — `unspecified-high`
   Run `shellcheck` on ALL .sh scripts. Run `bash -n` on ALL .sh scripts. Review all scripts for: hardcoded passwords, missing error handling, inconsistent function usage (msg_info/msg_ok/msg_error), missing `set -euo pipefail`, unused variables, unquoted variables. Check for AI slop: excessive comments, over-abstraction, generic variable names.
   Output: `ShellCheck [PASS/FAIL per script] | Syntax [PASS/FAIL] | Quality [N clean/N issues] | VERDICT`
 
-- [ ] F3. **Real Manual QA** — `unspecified-high`
+- [x] F3. **Real Manual QA** — `unspecified-high`
   Execute EVERY QA scenario from EVERY task — follow exact steps, capture evidence. Test cross-script integration (does install script work after LXC creation? do modules work after base install?). Test edge cases: whiptail cancel, invalid input, missing dependencies. Save to `.sisyphus/evidence/final-qa/`.
   Output: `Scenarios [N/N pass] | Integration [N/N] | Edge Cases [N tested] | VERDICT`
 
-- [ ] F4. **Scope Fidelity Check** — `deep`
+- [x] F4. **Scope Fidelity Check** — `deep`
   For each task: read "What to do", read actual file. Verify 1:1 — everything in spec was built (no missing), nothing beyond spec was built (no creep). Check "Must NOT Have" compliance. Detect unaccounted files. Flag any config parser, ACME integration, backup scheduler, or excessive whiptail screens.
   Output: `Tasks [N/N compliant] | Unaccounted [CLEAN/N files] | Guardrails [N/N respected] | VERDICT`
 

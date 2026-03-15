@@ -3,6 +3,9 @@
 # Usage: bash <(curl -fsSL https://raw.githubusercontent.com/runionow/proxmox-oracle26ai/main/ct/oracle26ai.sh)
 set -euo pipefail
 
+# Ensure whiptail works over SSH (TERM=dumb breaks TUI)
+[[ "${TERM:-}" == "dumb" || -z "${TERM:-}" ]] && export TERM="xterm-256color"
+
 # Source shared functions (local first, then curl from GitHub)
 GITHUB_RAW="https://raw.githubusercontent.com/runionow/proxmox-oracle26ai/main"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)" || SCRIPT_DIR=""

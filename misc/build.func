@@ -100,52 +100,39 @@ check_container_runtime() {
 }
 
 # ---------------------------------------------------------------------------
-# Whiptail helpers
+# Whiptail helpers (for scripts/uninstall.sh and other modules)
+# Note: ct/oracle26ai.sh uses simple read prompts instead
 # ---------------------------------------------------------------------------
 whiptail_menu() {
-  # Args: title text [tag desc on/off ...]
   local title="$1" text="$2"
   shift 2
-  local tmpfile
-  tmpfile=$(mktemp)
-  whiptail --title "$title" --radiolist "$text" 20 70 10 "$@" 2>"$tmpfile" < /dev/tty > /dev/tty || {
-    rm -f "$tmpfile"
+  local result
+  result=$(whiptail --title "$title" --radiolist "$text" 20 70 10 "$@" 2>&1 1>/dev/null) || {
     msg_warn "Operation cancelled by user."
     exit 0
   }
-  local result
-  result=$(cat "$tmpfile")
-  rm -f "$tmpfile"
   echo "$result"
 }
 
 whiptail_input() {
-  # Args: title text default_value
   local title="$1" text="$2" default="${3:-}"
-  local tmpfile
-  tmpfile=$(mktemp)
-  whiptail --title "$title" --inputbox "$text" 10 60 "$default" 2>"$tmpfile" < /dev/tty > /dev/tty || {
-    rm -f "$tmpfile"
+  local result
+  result=$(whiptail --title "$title" --inputbox "$text" 10 60 "$default" 2>&1 1>/dev/null) || {
     msg_warn "Operation cancelled by user."
     exit 0
   }
-  local result
-  result=$(cat "$tmpfile")
-  rm -f "$tmpfile"
   echo "$result"
 }
 
 whiptail_yesno() {
-  # Args: title text
   local title="$1" text="$2"
-  whiptail --title "$title" --yesno "$text" 10 60 < /dev/tty > /dev/tty 2>&1
+  whiptail --title "$title" --yesno "$text" 10 60 3>&1 1>&2 2>&3
   return $?
 }
 
 whiptail_msg() {
-  # Args: title text
   local title="$1" text="$2"
-  whiptail --title "$title" --msgbox "$text" 15 70 < /dev/tty > /dev/tty 2>&1
+  whiptail --title "$title" --msgbox "$text" 15 70 3>&1 1>&2 2>&3
 }
 
 # ---------------------------------------------------------------------------

@@ -3,7 +3,7 @@
 # Usage: bash <(curl -fsSL https://raw.githubusercontent.com/runionow/proxmox-oracle26ai/main/ct/oracle26ai.sh)
 set -euo pipefail
 
-# Ensure whiptail works over SSH (TERM=dumb breaks TUI)
+# Ensure terminal is properly configured for interactive prompts
 [[ "${TERM:-}" == "dumb" || -z "${TERM:-}" ]] && export TERM="xterm-256color"
 
 # Debug logging (enabled by default, check /tmp/oracle26ai-debug.log)
@@ -41,70 +41,95 @@ load_env
 log "load_env done, ORACLE_IMAGE_TAG=${ORACLE_IMAGE_TAG}"
 
 # ============================================================
-# TUI FLOW (max 6 screens)
+# USER PROMPTS (simple read — works in any terminal)
 # ============================================================
 
-# Screen 1: Welcome
-log "About to show Screen 1 (Welcome)"
-whiptail_msg "Oracle AI Database 26ai" \
-  "Welcome to the Oracle AI Database 26ai LXC Installer!\n\nThis will create a privileged LXC container with Docker and deploy Oracle AI Database 26ai Free.\n\nPress OK to continue." || { msg_warn "Installation cancelled."; exit 0; }
-log "Screen 1 passed"
+echo ""
+echo "============================================="
+echo "  Oracle AI Database 26ai — LXC Installer"
+echo "============================================="
+echo "Press ENTER to accept default values [shown in brackets]"
+echo ""
 
-# Screen 2: Oracle Image Selection
-log "About to show Screen 2 (Image selection)"
-ORACLE_IMAGE_TAG=$(whiptail_menu "Oracle Image" "Choose Oracle 26ai image flavor:" \
-  "23.26.0.0"    "Full image (~10GB) — all features, recommended" ON \
-  "latest-lite"  "Lite image (~2GB)  — faster download, dev use" OFF)
-log "Screen 2 passed, ORACLE_IMAGE_TAG=${ORACLE_IMAGE_TAG}"
-msg_ok "Selected image: container-registry.oracle.com/database/free:${ORACLE_IMAGE_TAG}"
+# Image selection
+log "Prompting for image selection"
+echo "Oracle image options:"
+echo "  1) Full image (~10GB, all features) [recommended]"
+echo "  2) Lite image (~2GB, faster download, dev use)"
+read -r -p "Choose image [1]: " _IMG_CHOICE
+_IMG_CHOICE="${_IMG_CHOICE:-1}"
+if [[ "$_IMG_CHOICE" == "2" || "$_IMG_CHOICE" == "lite" ]]; then
+  ORACLE_IMAGE_TAG="latest-lite"
+else
+  ORACLE_IMAGE_TAG="${ORACLE_IMAGE_TAG:-23.26.0.0}"
+fi
+log "Image selected: ${ORACLE_IMAGE_TAG}"
+echo "  → Image: container-registry.oracle.com/database/free:${ORACLE_IMAGE_TAG}"
+echo ""
 
-# Screen 3: Resources
-log "About to show Screen 3 (CPU)"
-CT_CORES=$(whiptail_input "Resources — CPU" "Number of CPU cores:" "${CT_CORES:-4}")
-log "Screen 3 passed, CT_CORES=${CT_CORES}"
-CT_MEMORY=$(whiptail_input "Resources — RAM" "RAM in MB (min 4096, recommended 8192):" "${CT_MEMORY:-8192}")
-log "RAM input done, CT_MEMORY=${CT_MEMORY}"
-CT_DISK_SIZE=$(whiptail_input "Resources — Disk" "Disk size in GB (min 20, recommended 32+):" "${CT_DISK_SIZE:-32}")
-log "Disk input done, CT_DISK_SIZE=${CT_DISK_SIZE}"
+# Resources
+log "Prompting for resources"
+read -r -p "CPU cores [${CT_CORES:-4}]: " _INPUT
+CT_CORES="${_INPUT:-${CT_CORES:-4}}"
+log "CT_CORES=${CT_CORES}"
 
-# Screen 4: Network
-log "About to show Screen 4 (Network)"
-NETWORK_TYPE=$(whiptail_menu "Network" "Choose networking:" \
-  "dhcp"   "DHCP — automatic IP (recommended)" ON \
-  "static" "Static IP — manual configuration" OFF)
-log "Screen 4 passed, NETWORK_TYPE=${NETWORK_TYPE}"
+read -r -p "RAM in MB [${CT_MEMORY:-8192}]: " _INPUT
+CT_MEMORY="${_INPUT:-${CT_MEMORY:-8192}}"
+log "CT_MEMORY=${CT_MEMORY}"
 
-if [[ "$NETWORK_TYPE" == "static" ]]; then
-  log "Static IP selected, prompting for details"
-  CT_NETWORK=$(whiptail_input "Static IP" "Enter IP address with CIDR (e.g. 192.168.1.100/24):" "")
-  CT_GATEWAY=$(whiptail_input "Static IP" "Enter gateway IP:" "")
-  CT_DNS=$(whiptail_input "Static IP" "Enter DNS server (or leave empty for gateway):" "")
-  CT_DNS="${CT_DNS:-$CT_GATEWAY}"
-  NET_CONFIG="ip=${CT_NETWORK},gw=${CT_GATEWAY},nameserver=${CT_DNS}"
+read -r -p "Disk size in GB [${CT_DISK_SIZE:-32}]: " _INPUT
+CT_DISK_SIZE="${_INPUT:-${CT_DISK_SIZE:-32}}"
+log "CT_DISK_SIZE=${CT_DISK_SIZE}"
+echo ""
+
+# Network
+log "Prompting for network configuration"
+echo "Network options:"
+echo "  1) DHCP — automatic IP [recommended]"
+echo "  2) Static IP — manual configuration"
+read -r -p "Choose network [1]: " _NET_CHOICE
+_NET_CHOICE="${_NET_CHOICE:-1}"
+if [[ "$_NET_CHOICE" == "2" || "$_NET_CHOICE" == "static" ]]; then
+  log "Static IP selected"
+  read -r -p "IP address with CIDR (e.g 192.168.1.100/24): " _CT_NETWORK
+  read -r -p "Gateway IP: " _CT_GATEWAY
+  read -r -p "DNS server [leave empty = use gateway]: " _CT_DNS
+  CT_DNS="${_CT_DNS:-$_CT_GATEWAY}"
+  NET_CONFIG="ip=${_CT_NETWORK},gw=${_CT_GATEWAY},nameserver=${CT_DNS}"
   log "Static IP configured: ${NET_CONFIG}"
 else
   NET_CONFIG="ip=dhcp"
   log "DHCP selected"
 fi
+echo ""
 
-# Screen 5: Oracle Password
-log "About to show Screen 5 (Oracle Password)"
-ORACLE_PWD=$(whiptail_input "Oracle Password" "Set Oracle SYS/SYSTEM password (min 8 chars):" "${ORACLE_PWD:-ChangeMe123!}")
-log "Screen 5 passed, password set"
+# Password
+log "Prompting for Oracle password"
+read -r -p "Oracle SYS password [ChangeMe123!]: " _INPUT
+ORACLE_PWD="${_INPUT:-${ORACLE_PWD:-ChangeMe123!}}"
+log "Oracle password set"
+echo ""
 
-# Screen 6: Confirmation
-log "About to show Screen 6 (Confirmation)"
-SUMMARY="Deployment Summary:\n\n"
-SUMMARY+="  Image:    container-registry.oracle.com/database/free:${ORACLE_IMAGE_TAG}\n"
-SUMMARY+="  CPU:      ${CT_CORES} cores\n"
-SUMMARY+="  RAM:      ${CT_MEMORY} MB\n"
-SUMMARY+="  Disk:     ${CT_DISK_SIZE} GB\n"
-SUMMARY+="  Network:  ${NET_CONFIG}\n"
-SUMMARY+="  Hostname: ${CT_HOSTNAME:-oracle26ai}\n\n"
-SUMMARY+="Proceed with deployment?"
-
-whiptail_yesno "Confirm Deployment" "$SUMMARY" || { msg_warn "Deployment cancelled."; exit 0; }
-log "Screen 6 passed, deployment confirmed"
+# Confirmation
+log "Showing deployment summary"
+echo "============================================="
+echo "  Deployment Summary"
+echo "============================================="
+echo "  Image:    container-registry.oracle.com/database/free:${ORACLE_IMAGE_TAG}"
+echo "  CPU:      ${CT_CORES} cores"
+echo "  RAM:      ${CT_MEMORY} MB"
+echo "  Disk:     ${CT_DISK_SIZE} GB"
+echo "  Network:  ${NET_CONFIG}"
+echo "  Hostname: ${CT_HOSTNAME:-oracle26ai}"
+echo "============================================="
+echo ""
+read -r -p "Proceed with deployment? [y/N]: " _CONFIRM
+if [[ "${_CONFIRM,,}" != "y" && "${_CONFIRM,,}" != "yes" ]]; then
+  log "Deployment cancelled by user"
+  msg_warn "Deployment cancelled."
+  exit 0
+fi
+log "Deployment confirmed"
 
 # ============================================================
 # DEPLOYMENT

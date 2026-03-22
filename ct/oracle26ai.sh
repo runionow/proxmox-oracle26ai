@@ -164,18 +164,55 @@ trap 'cleanup_on_error "${VMID:-}" "lxc"' ERR
 log "Cleanup trap set"
 
 # Download Debian 12 LXC template
-TEMPLATE="debian-12-standard_12.7-1_amd64.tar.zst"
+TEMPLATE_STORAGE="${CT_TEMPLATE_STORAGE:-}"
+if [[ -z "$TEMPLATE_STORAGE" ]]; then
+  TEMPLATE_STORAGE=$(pvesm status --content vztmpl 2>/dev/null | awk 'NR>1 {print $1; exit}')
+  [[ -z "$TEMPLATE_STORAGE" ]] && TEMPLATE_STORAGE="local"
+fi
+log "Template storage: ${TEMPLATE_STORAGE}"
+
 log "Checking for Debian 12 LXC template"
 msg_info "Checking for Debian 12 LXC template..."
-if ! pveam list local 2>/dev/null | grep -q "$TEMPLATE"; then
-  log "Template not found, downloading..."
+pveam update &>/dev/null || true
+
+LATEST_TEMPLATE=$(
+  pveam available --section system 2>/dev/null \
+    | awk '{for (i=1; i<=NF; i++) if ($i ~ /^debian-12-standard_.*_amd64\.tar\.zst$/) print $i}' \
+    | sort -V \
+    | tail -1
+)
+
+CANDIDATE_TEMPLATES=()
+[[ -n "$LATEST_TEMPLATE" ]] && CANDIDATE_TEMPLATES+=("$LATEST_TEMPLATE")
+CANDIDATE_TEMPLATES+=(
+  "debian-12-standard_12.7-1_amd64.tar.zst"
+  "debian-12-standard_12.5-1_amd64.tar.zst"
+  "debian-12-standard_12.2-1_amd64.tar.zst"
+)
+
+TEMPLATE=""
+for candidate in "${CANDIDATE_TEMPLATES[@]}"; do
+  if pveam list "$TEMPLATE_STORAGE" 2>/dev/null | grep -q "$candidate"; then
+    TEMPLATE="$candidate"
+    break
+  fi
+done
+
+if [[ -z "$TEMPLATE" ]]; then
+  log "Template not found in ${TEMPLATE_STORAGE}, downloading..."
   msg_info "Downloading Debian 12 template (one-time download)..."
-  pveam download local "$TEMPLATE" || \
-    pveam download local "debian-12-standard_12.2-1_amd64.tar.zst" || \
-    msg_error "Failed to download Debian 12 template. Check: pveam update && pveam available --section system"
+  for candidate in "${CANDIDATE_TEMPLATES[@]}"; do
+    [[ -z "$candidate" ]] && continue
+    if pveam download "$TEMPLATE_STORAGE" "$candidate" &>/dev/null; then
+      TEMPLATE="$candidate"
+      break
+    fi
+  done
 fi
-log "Debian 12 template ready"
-msg_ok "Debian 12 template ready"
+
+[[ -z "$TEMPLATE" ]] && msg_error "Failed to download Debian 12 template. Check: pveam update && pveam available --section system"
+log "Debian 12 template ready: ${TEMPLATE} (storage: ${TEMPLATE_STORAGE})"
+msg_ok "Debian 12 template ready: ${TEMPLATE}"
 
 # Create LXC container
 HOSTNAME="${CT_HOSTNAME:-oracle26ai}"
@@ -184,7 +221,7 @@ BRIDGE="${CT_BRIDGE:-vmbr0}"
 log "Creating LXC container VMID=${VMID}, hostname=${HOSTNAME}"
 msg_info "Creating LXC container (VMID: ${VMID})..."
 pct create "${VMID}" \
-  "local:vztmpl/${TEMPLATE}" \
+  "${TEMPLATE_STORAGE}:vztmpl/${TEMPLATE}" \
   --hostname "${HOSTNAME}" \
   --cores "${CT_CORES:-4}" \
   --memory "${CT_MEMORY:-8192}" \
